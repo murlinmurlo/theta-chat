@@ -7,17 +7,23 @@ import {
     Typography, 
     Box,
     Chip,
-    Alert
+    Alert,
+    CircularProgress
 } from '@mui/material';
+import { Provider } from 'react-redux';
+import { store } from './store';
+import { useAppSelector, useAppDispatch } from './hooks/redux';
+import { setUsername, logout, clearError, setError } from './store/slices/chatSlice';
 import { useWebSocket } from './hooks/useWebSocket';
-import { Message } from './types/chat';
 
-function App() {
+const ChatApp = () => {
     const [inputValue, setInputValue] = useState('');
-    const [username, setUsername] = useState('');
     const [tempUsername, setTempUsername] = useState('');
     
-    const { messages, sendMessage, isConnected } = useWebSocket('ws://localhost:5000');
+    const { messages, isConnected, username, isLoading, error } = useAppSelector(state => state.chat);
+    const dispatch = useAppDispatch();
+    
+    const { sendMessage } = useWebSocket('ws://localhost:5000');
 
     const handleSendMessage = () => {
         if (inputValue.trim() && username) {
@@ -25,18 +31,27 @@ function App() {
             if (success) {
                 setInputValue('');
             } else {
-                alert('Ошибка отправки сообщения. Проверьте соединение.');
+                dispatch(setError('Ошибка отправки сообщения. Проверьте соединение.'));
             }
         }
     };
 
     const handleLogin = () => {
         if (tempUsername.trim()) {
-            setUsername(tempUsername);
+            dispatch(setUsername(tempUsername));
         }
     };
 
-    const formatTime = (timestamp: Date) => {
+    const handleLogout = () => {
+        dispatch(logout());
+        setTempUsername('');
+    };
+
+    const handleClearError = () => {
+        dispatch(clearError());
+    };
+
+    const formatTime = (timestamp: string) => {
         const date = new Date(timestamp);
         return date.toLocaleTimeString('ru-RU', { 
             hour: '2-digit', 
@@ -49,7 +64,7 @@ function App() {
             <Container maxWidth="sm" style={{ marginTop: '50px' }}>
                 <Paper elevation={3} style={{ padding: '30px', textAlign: 'center' }}>
                     <Typography variant="h4" gutterBottom color="primary">
-                        🗨️ Веб-чат с WebSocket
+                        🗨️ Веб-чат
                     </Typography>
                     <Typography variant="body1" gutterBottom style={{ marginBottom: '20px' }}>
                         Введите ваше имя для начала общения
@@ -78,7 +93,6 @@ function App() {
     return (
         <Container maxWidth="md" style={{ marginTop: '20px', height: '90vh' }}>
             <Paper elevation={3} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                {/* Шапка чата */}
                 <Box style={{ 
                     padding: '20px', 
                     borderBottom: '1px solid #e0e0e0', 
@@ -106,17 +120,42 @@ function App() {
                             variant="outlined"
                             size="small"
                         />
+                        <Button 
+                            variant="outlined" 
+                            size="small" 
+                            onClick={handleLogout}
+                            color="secondary"
+                        >
+                            Выйти
+                        </Button>
                     </Box>
                 </Box>
 
-                {/* Статус соединения */}
-                {!isConnected && (
+                {isLoading && (
+                    <Box style={{ display: 'flex', justifyContent: 'center', padding: '10px' }}>
+                        <CircularProgress size={24} />
+                        <Typography variant="body2" style={{ marginLeft: '10px' }}>
+                            Загрузка...
+                        </Typography>
+                    </Box>
+                )}
+
+                {error && (
+                    <Alert 
+                        severity="error" 
+                        style={{ margin: '10px' }}
+                        onClose={handleClearError}
+                    >
+                        {error}
+                    </Alert>
+                )}
+
+                {!isConnected && !error && (
                     <Alert severity="warning" style={{ margin: '10px' }}>
                         Нет соединения с сервером. Сообщения могут не отправляться.
                     </Alert>
                 )}
 
-                {/* Область сообщений */}
                 <Box style={{ 
                     flex: 1, 
                     padding: '20px', 
@@ -183,7 +222,6 @@ function App() {
                     )}
                 </Box>
 
-                {/* Поле ввода */}
                 <Box style={{ padding: '20px', borderTop: '1px solid #e0e0e0' }}>
                     <Box style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
                         <TextField
@@ -215,6 +253,14 @@ function App() {
             </Paper>
         </Container>
     );
-}
+};
+
+const App = () => {
+    return (
+        <Provider store={store}>
+            <ChatApp />
+        </Provider>
+    );
+};
 
 export default App;
