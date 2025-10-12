@@ -9,9 +9,21 @@ import {
     Chip,
     Alert,
     CircularProgress,
-    IconButton
+    IconButton,
+    Avatar,
+    AppBar,
+    Toolbar,
+    Badge
 } from '@mui/material';
-import { AttachFile, Close } from '@mui/icons-material';
+import { 
+    AttachFile, 
+    Close, 
+    Send, 
+    Logout, 
+    Image as ImageIcon,
+    InsertDriveFile,
+    People 
+} from '@mui/icons-material';
 import { Provider } from 'react-redux';
 import { store } from './store';
 import { useAppSelector, useAppDispatch } from './hooks/redux';
@@ -31,6 +43,32 @@ const ChatApp = () => {
     const dispatch = useAppDispatch();
     
     const { sendMessage } = useWebSocket('ws://localhost:5000', username, userId);
+
+    const stringToColor = (string: string) => {
+        let hash = 0;
+        for (let i = 0; i < string.length; i++) {
+            hash = string.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        let color = '#';
+        for (let i = 0; i < 3; i++) {
+            const value = (hash >> (i * 8)) & 0xff;
+            color += `00${value.toString(16)}`.slice(-2);
+        }
+        return color;
+    };
+
+    const stringAvatar = (name: string) => {
+        return {
+            sx: {
+                bgcolor: stringToColor(name),
+                width: 32,
+                height: 32,
+                fontSize: '0.875rem',
+                fontWeight: 600,
+            },
+            children: `${name.split(' ')[0][0]}${name.split(' ')[1] ? name.split(' ')[1][0] : ''}`,
+        };
+    };
 
     const handleFileUpload = async (file: File) => {
         setSelectedFile(file);
@@ -121,7 +159,7 @@ const ChatApp = () => {
     const renderFileMessage = (file: any) => {
         if (isImageFile(file.mimetype)) {
             return (
-                <Box style={{ marginTop: '8px' }}>
+                <Box sx={{ mt: 1 }}>
                     <img 
                         src={file.url} 
                         alt={file.originalName}
@@ -133,7 +171,7 @@ const ChatApp = () => {
                         }}
                         onClick={() => window.open(file.url, '_blank')}
                     />
-                    <Typography variant="caption" color="textSecondary" style={{ display: 'block', marginTop: '4px' }}>
+                    <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: 0.5 }}>
                         {file.originalName} ({formatFileSize(file.size)})
                     </Typography>
                 </Box>
@@ -142,22 +180,37 @@ const ChatApp = () => {
 
         return (
             <Box 
-                style={{ 
+                sx={{ 
                     display: 'flex', 
                     alignItems: 'center', 
-                    gap: '10px',
-                    padding: '10px',
-                    border: '1px solid #e0e0e0',
-                    borderRadius: '8px',
-                    marginTop: '8px',
-                    background: '#f5f5f5',
-                    cursor: 'pointer'
+                    gap: 1,
+                    p: 1.5,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 2,
+                    mt: 1,
+                    backgroundColor: 'background.default',
+                    cursor: 'pointer',
+                    '&:hover': {
+                        backgroundColor: 'action.hover',
+                    }
                 }}
                 onClick={() => window.open(file.url, '_blank')}
             >
-                <Typography variant="h6">{getFileIcon(file.mimetype)}</Typography>
-                <Box style={{ flex: 1 }}>
-                    <Typography variant="body2" style={{ fontWeight: 'bold' }}>
+                <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    width: 40,
+                    height: 40,
+                    borderRadius: 1,
+                    backgroundColor: 'primary.light',
+                    color: 'white'
+                }}>
+                    {getFileIcon(file.mimetype)}
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {file.originalName}
                     </Typography>
                     <Typography variant="caption" color="textSecondary">
@@ -170,25 +223,55 @@ const ChatApp = () => {
 
     if (!username) {
         return (
-            <Container maxWidth="sm" style={{ marginTop: '50px' }}>
-                <Paper elevation={3} style={{ padding: '30px', textAlign: 'center' }}>
-                    <Typography variant="h4" gutterBottom color="primary">
-                        🗨️ Веб-чат
-                    </Typography>
-                    <Typography variant="body1" gutterBottom style={{ marginBottom: '20px' }}>
-                        Введите ваше имя для начала общения
-                    </Typography>
+            <Box
+                sx={{
+                    minHeight: '100vh',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    p: 2
+                }}
+            >
+                <Paper 
+                    elevation={8} 
+                    sx={{ 
+                        p: 4, 
+                        maxWidth: 400,
+                        width: '100%',
+                        textAlign: 'center',
+                        background: 'rgba(255, 255, 255, 0.95)',
+                        backdropFilter: 'blur(10px)'
+                    }}
+                >
+                    <Box sx={{ mb: 3 }}>
+                        <Typography variant="h4" sx={{ 
+                            fontWeight: 700,
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            backgroundClip: 'text',
+                            WebkitBackgroundClip: 'text',
+                            color: 'transparent',
+                            mb: 1
+                        }}>
+                            Nexus Chat
+                        </Typography>
+                        <Typography variant="body1" color="text.secondary">
+                            Присоединяйтесь к общению
+                        </Typography>
+                    </Box>
+
                     {error && (
-                        <Alert severity="error" style={{ marginBottom: '20px' }} onClose={handleClearError}>
+                        <Alert severity="error" sx={{ mb: 2 }} onClose={handleClearError}>
                             {error}
                         </Alert>
                     )}
+
                     <TextField
                         fullWidth
                         value={tempUsername}
                         onChange={(e) => setTempUsername(e.target.value)}
-                        placeholder="Как вас зовут?"
-                        style={{ marginBottom: '20px' }}
+                        placeholder="Введите ваше имя"
+                        sx={{ mb: 3 }}
                         onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
                     />
                     <Button 
@@ -196,203 +279,300 @@ const ChatApp = () => {
                         onClick={handleLogin}
                         size="large"
                         disabled={!tempUsername.trim()}
+                        sx={{
+                            py: 1.5,
+                            px: 4,
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            color: 'white',
+                            '&:hover': {
+                                transform: 'translateY(-1px)',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            },
+                            transition: 'all 0.2s ease'
+                        }}
                     >
-                        Войти в чат
+                        Начать общение
                     </Button>
                 </Paper>
-            </Container>
+            </Box>
         );
     }
 
     return (
-        <Container maxWidth="md" style={{ marginTop: '20px', height: '90vh' }}>
-            <Paper elevation={3} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <Box style={{ 
-                    padding: '20px', 
-                    borderBottom: '1px solid #e0e0e0', 
-                    background: '#f5f5f5',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                }}>
-                    <Box>
-                        <Typography variant="h5" component="div">
-                            🗨️ Веб-чат
-                        </Typography>
-                        <Typography variant="body2" color="textSecondary">
-                            Вы вошли как: <strong>{username}</strong>
-                        </Typography>
-                    </Box>
-                    <Box style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <Chip 
-                            label={`👥 ${onlineUsers.length} онлайн`} 
-                            variant="outlined"
-                            size="small"
-                        />
-                        <Button 
-                            variant="outlined" 
-                            size="small" 
-                            onClick={handleLogout}
-                            color="secondary"
-                        >
-                            Выйти
-                        </Button>
-                    </Box>
-                </Box>
-
-                {isLoading && (
-                    <Box style={{ display: 'flex', justifyContent: 'center', padding: '10px' }}>
-                        <CircularProgress size={24} />
-                        <Typography variant="body2" style={{ marginLeft: '10px' }}>
-                            Загрузка...
-                        </Typography>
-                    </Box>
-                )}
-
-                {error && (
-                    <Alert 
-                        severity="error" 
-                        style={{ margin: '10px' }}
-                        onClose={handleClearError}
-                    >
-                        {error}
-                    </Alert>
-                )}
-
-                {!isConnected && !error && (
-                    <Alert severity="info" style={{ margin: '10px' }}>
-                        Установка соединения с сервером...
-                    </Alert>
-                )}
-
-                <Box style={{ 
-                    flex: 1, 
-                    padding: '20px', 
-                    overflowY: 'auto',
-                    background: '#fafafa'
-                }}>
-                    {messages.length === 0 ? (
-                        <Typography 
-                            variant="body1" 
-                            color="textSecondary" 
-                            style={{ 
-                                textAlign: 'center', 
-                                marginTop: '50px',
-                                fontStyle: 'italic'
-                            }}
-                        >
-                            {isConnected ? 
-                                "Пока нет сообщений. Будьте первым!" : 
-                                "Загрузка сообщений..."
-                            }
-                        </Typography>
-                    ) : (
-                        messages.map((msg) => (
-                            <Box 
-                                key={msg.id}
-                                style={{ 
-                                    padding: '12px 16px',
-                                    marginBottom: '8px',
-                                    background: msg.isCurrentUser ? '#e3f2fd' : 'white',
-                                    borderRadius: '12px',
-                                    border: '1px solid #e0e0e0',
-                                    maxWidth: '80%',
-                                    marginLeft: msg.isCurrentUser ? 'auto' : '0',
-                                    marginRight: msg.isCurrentUser ? '0' : 'auto'
-                                }}
-                            >
-                                <Box style={{ 
-                                    display: 'flex', 
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    marginBottom: '4px'
-                                }}>
-                                    <Box style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <Typography 
-                                            variant="subtitle2" 
-                                            style={{ 
-                                                fontWeight: 'bold',
-                                                color: msg.isCurrentUser ? '#1976d2' : '#333'
-                                            }}
-                                        >
-                                            {msg.user} {msg.isCurrentUser && '(Вы)'}
-                                        </Typography>
-                                        {isUserOnline(msg.user) && (
-                                            <Box
-                                                style={{
-                                                    width: '8px',
-                                                    height: '8px',
-                                                    borderRadius: '50%',
-                                                    backgroundColor: '#4caf50'
-                                                }}
-                                            />
-                                        )}
-                                    </Box>
-                                    <Typography 
-                                        variant="caption" 
-                                        color="textSecondary"
-                                    >
-                                        {formatTime(msg.timestamp)}
-                                    </Typography>
-                                </Box>
-                                
-                                {msg.text && (
-                                    <Typography variant="body1">
-                                        {msg.text}
-                                    </Typography>
-                                )}
-                                
-                                {msg.file && renderFileMessage(msg.file)}
-                            </Box>
-                        ))
-                    )}
-                </Box>
-
-                <Box style={{ padding: '20px', borderTop: '1px solid #e0e0e0' }}>
-                    {showFileUpload && (
-                        <FileUpload 
-                            onFileUpload={handleFileUpload}
-                            onRemoveFile={handleRemoveFile}
-                            isUploading={isUploading}
-                        />
-                    )}
+        <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#f8fafc' }}>
+            <AppBar 
+                position="static" 
+                elevation={0}
+                sx={{ 
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white'
+                }}
+            >
+                <Toolbar>
+                    <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 600 }}>
+                        Nexus Chat
+                    </Typography>
                     
-                    <Box style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                        <IconButton 
-                            onClick={() => setShowFileUpload(!showFileUpload)}
-                            color={showFileUpload ? "primary" : "default"}
-                        >
-                            <AttachFile />
-                        </IconButton>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <People sx={{ fontSize: 20 }} />
+                            <Typography variant="body2">
+                                {onlineUsers.length} онлайн
+                            </Typography>
+                        </Box>
                         
-                        <TextField
-                            fullWidth
-                            multiline
-                            maxRows={3}
-                            value={inputValue}
-                            onChange={(e) => setInputValue(e.target.value)}
-                            placeholder="Введите сообщение или загрузите файл..."
-                            disabled={!isConnected}
-                            onKeyPress={(e) => {
-                                if (e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault();
-                                    handleSendMessage();
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Avatar {...stringAvatar(username)} />
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                {username}
+                            </Typography>
+                        </Box>
+                        
+                        <IconButton 
+                            color="inherit" 
+                            onClick={handleLogout}
+                            sx={{ 
+                                '&:hover': {
+                                    backgroundColor: 'rgba(255,255,255,0.1)'
                                 }
                             }}
-                            variant="outlined"
-                        />
-                        <Button 
-                            variant="contained" 
-                            onClick={handleSendMessage}
-                            disabled={(!inputValue.trim() && !selectedFile) || !isConnected || isUploading}
-                            style={{ minWidth: '100px', height: '56px' }}
                         >
-                            {isUploading ? <CircularProgress size={24} /> : 'Отправить'}
-                        </Button>
+                            <Logout />
+                        </IconButton>
                     </Box>
-                </Box>
-            </Paper>
-        </Container>
+                </Toolbar>
+            </AppBar>
+
+            <Container maxWidth="lg" sx={{ flex: 1, display: 'flex', py: 2 }}>
+                <Paper 
+                    elevation={2} 
+                    sx={{ 
+                        flex: 1, 
+                        display: 'flex', 
+                        flexDirection: 'column',
+                        borderRadius: 2,
+                        overflow: 'hidden'
+                    }}
+                >
+                    <Box sx={{ 
+                        flex: 1, 
+                        p: 2, 
+                        overflowY: 'auto',
+                        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
+                    }}>
+                        {messages.length === 0 ? (
+                            <Box sx={{ 
+                                textAlign: 'center', 
+                                mt: 8,
+                                color: 'text.secondary'
+                            }}>
+                                <Typography variant="h6" sx={{ mb: 1, opacity: 0.7 }}>
+                                    {isConnected ? "Начните общение!" : "Подключение..."}
+                                </Typography>
+                                <Typography variant="body2">
+                                    {isConnected ? "Отправьте первое сообщение" : "Устанавливаем соединение"}
+                                </Typography>
+                            </Box>
+                        ) : (
+                            messages.map((msg) => (
+                                <Box 
+                                    key={msg.id}
+                                    sx={{ 
+                                        display: 'flex',
+                                        justifyContent: msg.isCurrentUser ? 'flex-end' : 'flex-start',
+                                        mb: 2,
+                                        animation: 'fadeIn 0.3s ease'
+                                    }}
+                                >
+                                    <Box sx={{ 
+                                        display: 'flex',
+                                        alignItems: 'flex-start',
+                                        gap: 1,
+                                        maxWidth: '70%',
+                                        flexDirection: msg.isCurrentUser ? 'row-reverse' : 'row'
+                                    }}>
+                                        {!msg.isCurrentUser && (
+                                            <Avatar {...stringAvatar(msg.user)} />
+                                        )}
+                                        
+                                        <Box>
+                                            {!msg.isCurrentUser && (
+                                                <Typography variant="caption" color="text.secondary" sx={{ ml: 1, mb: 0.5, display: 'block' }}>
+                                                    {msg.user}
+                                                    {isUserOnline(msg.user) && (
+                                                        <Box 
+                                                            component="span"
+                                                            sx={{
+                                                                width: 6,
+                                                                height: 6,
+                                                                borderRadius: '50%',
+                                                                backgroundColor: 'success.main',
+                                                                ml: 0.5,
+                                                                display: 'inline-block'
+                                                            }}
+                                                        />
+                                                    )}
+                                                </Typography>
+                                            )}
+                                            
+                                            <Paper
+                                                elevation={1}
+                                                sx={{
+                                                    p: 2,
+                                                    background: msg.isCurrentUser 
+                                                        ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                                                        : 'white',
+                                                    color: msg.isCurrentUser ? 'white' : 'text.primary',
+                                                    borderRadius: 2,
+                                                    borderTopRightRadius: msg.isCurrentUser ? 4 : 12,
+                                                    borderTopLeftRadius: msg.isCurrentUser ? 12 : 4,
+                                                    position: 'relative',
+                                                    '&::before': msg.isCurrentUser ? {
+                                                        content: '""',
+                                                        position: 'absolute',
+                                                        right: -8,
+                                                        top: 0,
+                                                        width: 0,
+                                                        height: 0,
+                                                        borderLeft: '8px solid #764ba2',
+                                                        borderTop: '8px solid transparent',
+                                                        borderBottom: '8px solid transparent'
+                                                    } : {
+                                                        content: '""',
+                                                        position: 'absolute',
+                                                        left: -8,
+                                                        top: 0,
+                                                        width: 0,
+                                                        height: 0,
+                                                        borderRight: '8px solid white',
+                                                        borderTop: '8px solid transparent',
+                                                        borderBottom: '8px solid transparent'
+                                                    }
+                                                }}
+                                            >
+                                                {msg.text && (
+                                                    <Typography variant="body1" sx={{ lineHeight: 1.5 }}>
+                                                        {msg.text}
+                                                    </Typography>
+                                                )}
+                                                
+                                                {msg.file && renderFileMessage(msg.file)}
+                                                
+                                                <Typography 
+                                                    variant="caption" 
+                                                    sx={{ 
+                                                        display: 'block', 
+                                                        mt: 1,
+                                                        opacity: 0.7
+                                                    }}
+                                                >
+                                                    {formatTime(msg.timestamp)}
+                                                </Typography>
+                                            </Paper>
+                                        </Box>
+
+                                        {msg.isCurrentUser && (
+                                            <Avatar {...stringAvatar(msg.user)} />
+                                        )}
+                                    </Box>
+                                </Box>
+                            ))
+                        )}
+                    </Box>
+
+                    <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider', background: 'white' }}>
+                        {showFileUpload && (
+                            <FileUpload 
+                                onFileUpload={handleFileUpload}
+                                onRemoveFile={handleRemoveFile}
+                                isUploading={isUploading}
+                            />
+                        )}
+                        
+                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
+                            <IconButton 
+                                onClick={() => setShowFileUpload(!showFileUpload)}
+                                color={showFileUpload ? "primary" : "default"}
+                                sx={{
+                                    '&:hover': {
+                                        backgroundColor: 'action.hover',
+                                        transform: 'scale(1.1)'
+                                    },
+                                    transition: 'all 0.2s ease'
+                                }}
+                            >
+                                <AttachFile />
+                            </IconButton>
+                            
+                            <TextField
+                                fullWidth
+                                multiline
+                                maxRows={4}
+                                value={inputValue}
+                                onChange={(e) => setInputValue(e.target.value)}
+                                placeholder="Напишите сообщение..."
+                                disabled={!isConnected}
+                                onKeyPress={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        handleSendMessage();
+                                    }
+                                }}
+                                variant="outlined"
+                                size="small"
+                            />
+                            <Button 
+                                variant="contained" 
+                                onClick={handleSendMessage}
+                                disabled={(!inputValue.trim() && !selectedFile) || !isConnected || isUploading}
+                                sx={{ 
+                                    minWidth: 'auto',
+                                    width: 48,
+                                    height: 48,
+                                    borderRadius: '50%',
+                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                    '&:hover': {
+                                        transform: 'scale(1.05)',
+                                    },
+                                    transition: 'all 0.2s ease',
+                                    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+                                }}
+                            >
+                                {isUploading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : <Send />}
+                            </Button>
+                        </Box>
+                    </Box>
+                </Paper>
+            </Container>
+
+            {error && (
+                <Alert 
+                    severity="error" 
+                    sx={{ 
+                        m: 2,
+                        borderRadius: 2,
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                    }}
+                    onClose={handleClearError}
+                >
+                    {error}
+                </Alert>
+            )}
+
+            {!isConnected && !error && (
+                <Alert 
+                    severity="info" 
+                    sx={{ 
+                        m: 2,
+                        borderRadius: 2,
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                    }}
+                >
+                    Устанавливаем соединение с сервером...
+                </Alert>
+            )}
+        </Box>
     );
 };
 

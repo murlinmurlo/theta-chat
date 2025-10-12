@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Box, Typography, CircularProgress, IconButton } from '@mui/material';
-import { Close, CloudUpload } from '@mui/icons-material';
+import { Box, Typography, CircularProgress, IconButton, Paper } from '@mui/material';
+import { Close, CloudUpload, InsertDriveFile, Image as ImageIcon } from '@mui/icons-material';
 import { formatFileSize, isImageFile } from '../utils/fileUtils';
 
 interface FileUploadProps {
@@ -42,46 +42,57 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, onRemoveFile, isU
 
     if (selectedFile) {
         return (
-            <Box style={{ 
-                padding: '10px', 
-                border: '1px solid #e0e0e0', 
-                borderRadius: '8px',
-                marginBottom: '10px',
-                background: '#f9f9f9'
-            }}>
-                <Box style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Box style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Paper 
+                elevation={1}
+                sx={{ 
+                    p: 2, 
+                    mb: 2,
+                    borderRadius: 2,
+                    background: 'background.default'
+                }}
+            >
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                         {isImageFile(selectedFile.type) ? (
-                            <img 
-                                src={URL.createObjectURL(selectedFile)} 
-                                alt="Preview" 
-                                style={{ 
-                                    width: '40px', 
-                                    height: '40px', 
-                                    objectFit: 'cover',
-                                    borderRadius: '4px'
-                                }} 
-                            />
-                        ) : (
-                            <Box style={{ 
-                                width: '40px', 
-                                height: '40px', 
+                            <Box sx={{ 
+                                width: 60, 
+                                height: 60, 
+                                borderRadius: 1,
+                                overflow: 'hidden',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                background: '#e3f2fd',
-                                borderRadius: '4px'
+                                backgroundColor: 'action.hover'
                             }}>
-                                <Typography variant="body2">
-                                    {selectedFile.name.split('.').pop()?.toUpperCase()}
-                                </Typography>
+                                <img 
+                                    src={URL.createObjectURL(selectedFile)} 
+                                    alt="Preview" 
+                                    style={{ 
+                                        width: '100%', 
+                                        height: '100%', 
+                                        objectFit: 'cover'
+                                    }} 
+                                />
+                            </Box>
+                        ) : (
+                            <Box sx={{ 
+                                width: 60, 
+                                height: 60, 
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                backgroundColor: 'primary.light',
+                                borderRadius: 1,
+                                color: 'white'
+                            }}>
+                                <InsertDriveFile />
                             </Box>
                         )}
                         <Box>
-                            <Typography variant="body2" style={{ fontWeight: 'bold' }}>
+                            <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
                                 {selectedFile.name}
                             </Typography>
-                            <Typography variant="caption" color="textSecondary">
+                            <Typography variant="caption" color="text.secondary">
                                 {formatFileSize(selectedFile.size)}
                             </Typography>
                         </Box>
@@ -90,47 +101,65 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, onRemoveFile, isU
                         size="small" 
                         onClick={handleRemoveFile}
                         disabled={isUploading}
+                        sx={{
+                            '&:hover': {
+                                backgroundColor: 'action.hover'
+                            }
+                        }}
                     >
                         <Close />
                     </IconButton>
                 </Box>
                 {isUploading && (
-                    <Box style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
                         <CircularProgress size={16} />
-                        <Typography variant="caption">Загрузка...</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                            Загружаем файл...
+                        </Typography>
                     </Box>
                 )}
-            </Box>
+            </Paper>
         );
     }
 
     return (
-        <Box
+        <Paper
             {...getRootProps()}
-            style={{
+            elevation={1}
+            sx={{
                 border: '2px dashed',
-                borderColor: isDragActive ? '#1976d2' : '#e0e0e0',
-                borderRadius: '8px',
-                padding: '20px',
+                borderColor: isDragActive ? 'primary.main' : 'divider',
+                borderRadius: 2,
+                p: 3,
                 textAlign: 'center',
                 cursor: 'pointer',
-                background: isDragActive ? '#e3f2fd' : '#fafafa',
-                marginBottom: '10px',
-                transition: 'all 0.2s ease'
+                backgroundColor: isDragActive ? 'primary.light' : 'background.default',
+                mb: 2,
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                    borderColor: 'primary.main',
+                    backgroundColor: 'action.hover'
+                }
             }}
         >
             <input {...getInputProps()} />
-            <CloudUpload style={{ fontSize: 48, color: '#9e9e9e', marginBottom: '10px' }} />
-            <Typography variant="body1" style={{ marginBottom: '5px' }}>
+            <CloudUpload 
+                sx={{ 
+                    fontSize: 48, 
+                    color: isDragActive ? 'white' : 'text.secondary',
+                    mb: 2
+                }} 
+            />
+            <Typography variant="body1" sx={{ mb: 1, fontWeight: 500 }}>
                 {isDragActive ? 'Отпустите файл здесь' : 'Перетащите файл сюда'}
             </Typography>
-            <Typography variant="caption" color="textSecondary">
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                 или нажмите для выбора файла
             </Typography>
-            <Typography variant="caption" color="textSecondary" style={{ display: 'block', marginTop: '5px' }}>
-                Максимальный размер: 10MB
+            <Typography variant="caption" color="text.secondary">
+                Поддерживаемые форматы: JPG, PNG, GIF, PDF, DOC, ZIP (макс. 10MB)
             </Typography>
-        </Box>
+        </Paper>
     );
 };
 
