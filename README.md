@@ -1,47 +1,119 @@
-# Getting Started with Create React App
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+# Nexus Chat - Modern Real-Time Chat Application
 
-## Available Scripts
+  
 
-In the project directory, you can run:
+<div  align="center">
 
-### `npm start`
+  
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+![React](https://img.shields.io/badge/React-18.2.0-blue?style=for-the-badge&logo=react)
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue?style=for-the-badge&logo=typescript)
 
-### `npm test`
+![WebSocket](https://img.shields.io/badge/WebSocket-Real--Time-green?style=for-the-badge&logo=websocket)
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+![Material-UI](https://img.shields.io/badge/Material--UI-StyledComponents-purple?style=for-the-badge&logo=mui)
 
-### `npm run build`
+  
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+**Современный веб-чат с реальным временем, красивым интерфейсом и расширенными возможностями**
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+  
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+[Особенности](#-особенности) • [Бизнес-ценность](#-бизнес-ценность) • [Запуск](#-запуск) • [Развитие](#-развитие)
 
-### `npm run eject`
+  
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+</div>
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+  
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+## Основной функционал
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+  
 
-## Learn More
+**Nexus Chat** решает ключевую проблему современных команд - необходимость в быстром, надежном и красивом инструменте для внутренней коммуникации. В отличие от массовых мессенджеров, это решение предоставляет полный контроль над данными и возможность кастомизации под специфические бизнес-потребности.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+  
+  
 
-To learn React, check out the [React documentation](https://reactjs.org/).
-# theta-chat
+### Основные преимущества
+
+  
+
+#### **Для бизнеса**
+
+-  **Увеличение продуктивности** команды за счет мгновенной коммуникации
+
+-  **Снижение затрат** на внешние мессенджеры и корпоративные решения
+
+-  **Безопасность данных** - все сообщения хранятся на ваших серверах
+
+-  **Кастомизация** под бренд компании и специфические нужды
+
+  
+
+### Потенциальное развитие
+
+ 
+#### **Улучшения**
+
+1.  **Каналы и группы** - организация чатов по проектам и отделам
+
+2.  **Голосовые сообщения** - запись и отправка аудио прямо в чат
+
+3.  **Расширенный поиск** - по сообщениям, файлам и пользователям
+
+  
+
+#### **Бизнес-функции**
+
+1.  **Аналитика чатов** - метрики активности и эффективности коммуникации
+
+2.  **Автоматизация** - чат-боты для ответов на частые вопросы
+
+3.  **Админ-панель** - управление пользователями, правами и модерация
+
+4.  **Экспорт данных** - выгрузка истории для отчетности и аудита
+
+  
+
+## Запуск приложения
+
+  
+
+### Предварительные требования
+
+  
+
+-  **Node.js** 16.0 или выше
+
+-  **npm** 7.0 или выше
+
+-  **Доступ к портам** 3000 (frontend) и 5000 (backend)
+
+  
+
+### Установка и запуск
+
+  
+
+#### 1. Клонирование репозитория
+
+Backend:
+```bash
+
+git  clone  https://github.com/murlinmurlo/nexus-chat.git
+cd  nexus-chat/chat-backend
+npm install uuid
+npm  run  dev 
+```
+
+Frontend:
+```bash
+
+cd ..
+npm install
+npm  start
+```
