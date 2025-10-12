@@ -1,13 +1,13 @@
 import { useEffect, useRef } from 'react';
 import { useAppDispatch } from './redux';
-import { setMessages, addMessage, setConnection, setError } from '../store/slices/chatSlice';
+import { setMessages, addMessage, setConnection, setError, setOnlineUsers, updateOnlineUsers, setUserId } from '../store/slices/chatSlice';
 
-export const useWebSocket = (url: string, isActive: boolean = true) => {
+export const useWebSocket = (url: string, username: string, userId: string) => {
     const dispatch = useAppDispatch();
     const ws = useRef<WebSocket | null>(null);
 
     useEffect(() => {
-        if (!isActive) {
+        if (!username) {
             if (ws.current) {
                 ws.current.close();
                 ws.current = null;
@@ -20,6 +20,12 @@ export const useWebSocket = (url: string, isActive: boolean = true) => {
         ws.current.onopen = () => {
             dispatch(setConnection(true));
             dispatch(setError(null));
+            
+            ws.current?.send(JSON.stringify({
+                type: 'LOGIN',
+                username: username,
+                userId: userId
+            }));
         };
 
         ws.current.onmessage = (event) => {
@@ -28,8 +34,19 @@ export const useWebSocket = (url: string, isActive: boolean = true) => {
                 
                 if (data.type === 'INIT_MESSAGES') {
                     dispatch(setMessages(data.messages));
+                    dispatch(setOnlineUsers(data.onlineUsers || []));
+                    if (data.userId) {
+                        dispatch(setUserId(data.userId));
+                    }
                 } else if (data.type === 'NEW_MESSAGE') {
                     dispatch(addMessage(data.message));
+                    dispatch(setOnlineUsers(data.onlineUsers || []));
+                } else if (data.type === 'USER_ONLINE') {
+                    dispatch(updateOnlineUsers({username: data.username, type: 'online'}));
+                    dispatch(setOnlineUsers(data.onlineUsers || []));
+                } else if (data.type === 'USER_OFFLINE') {
+                    dispatch(updateOnlineUsers({username: data.username, type: 'offline'}));
+                    dispatch(setOnlineUsers(data.onlineUsers || []));
                 } else if (data.type === 'ERROR') {
                     dispatch(setError(data.message));
                 }
@@ -53,14 +70,16 @@ export const useWebSocket = (url: string, isActive: boolean = true) => {
                 ws.current = null;
             }
         };
-    }, [url, dispatch, isActive]);
+    }, [url, dispatch, username, userId]);
 
-    const sendMessage = (user: string, text: string) => {
+    const sendMessage = (user: string, text: string, userId: string, file?: any) => {
         if (ws.current && ws.current.readyState === WebSocket.OPEN) {
             ws.current.send(JSON.stringify({
                 type: 'NEW_MESSAGE',
                 user,
-                text
+                text,
+                userId,
+                file
             }));
             return true;
         }

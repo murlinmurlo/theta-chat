@@ -2,62 +2,133 @@ import express from 'express';
 import cors from 'cors';
 import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
+import { v4 as uuidv4 } from 'uuid';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
 const app = express();
 const PORT = 5000;
-
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static('uploads'));
+
+if (!fs.existsSync('uploads')) {
+    fs.mkdirSync('uploads');
+}
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'uploads/');
+    },
+    filename: (req, file, cb) => {
+        const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
+        cb(null, uniqueName);
+    }
+});
+
+const upload = multer({
+    storage: storage,
+    limits: {
+        fileSize: 10 * 1024 * 1024
+    },
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|txt|zip/;
+        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+        const mimetype = allowedTypes.test(file.mimetype);
+
+        if (mimetype && extname) {
+            return cb(null, true);
+        } else {
+            cb(new Error('Недопустимый тип файла'));
+        }
+    }
+});
 
 interface Message {
     id: number;
+    userId: string;
     user: string;
     text: string;
     timestamp: Date;
+    file?: {
+        filename: string;
+        originalName: string;
+        mimetype: string;
+        size: number;
+        url: string;
+    };
 }
 
 let messages: Message[] = [];
 let nextId = 1;
-
-const clients: Set<WebSocket> = new Set();
+const clients: Map<WebSocket, {userId: string, username: string}> = new Map();
+const onlineUsers: Map<string, string> = new Map();
 
 wss.on('connection', (ws: WebSocket) => {
     console.log('🔗 Новое WebSocket соединение');
-    clients.add(ws);
-
-    ws.send(JSON.stringify({
-        type: 'INIT_MESSAGES',
-        messages: messages
-    }));
 
     ws.on('message', (data: Buffer) => {
         try {
             const parsedData = JSON.parse(data.toString());
             
-            if (parsedData.type === 'NEW_MESSAGE') {
-                const { user, text } = parsedData;
+            if (parsedData.type === 'LOGIN') {
+                const { username, userId } = parsedData;
+                const userUUID = userId || uuidv4();
                 
+                clients.set(ws, {userId: userUUID, username});
+                onlineUsers.set(userUUID, username);
+                
+                ws.send(JSON.stringify({
+                    type: 'INIT_MESSAGES',
+                    messages: messages.map(msg => ({
+                        ...msg,
+                        isCurrentUser: msg.userId === userUUID
+                    })),
+                    onlineUsers: Array.from(onlineUsers.values()),
+                    userId: userUUID
+                }));
+
+                const broadcastData = JSON.stringify({
+                    type: 'USER_ONLINE',
+                    username: username,
+                    onlineUsers: Array.from(onlineUsers.values())
+                });
+
+                clients.forEach((user, client) => {
+                    if (client !== ws && client.readyState === WebSocket.OPEN) {
+                        client.send(broadcastData);
+                    }
+                });
+            }
+            
+            if (parsedData.type === 'NEW_MESSAGE') {
+                const { user, text, userId, file } = parsedData;
                 const newMessage: Message = {
                     id: nextId++,
+                    userId: userId,
                     user: user.toString(),
                     text: text.toString(),
-                    timestamp: new Date()
+                    timestamp: new Date(),
+                    file: file
                 };
                 
                 messages.push(newMessage);
-                console.log('📨 Новое сообщение:', newMessage);
 
-                const broadcastData = JSON.stringify({
-                    type: 'NEW_MESSAGE',
-                    message: newMessage
-                });
-
-                clients.forEach(client => {
+                clients.forEach((clientUser, client) => {
                     if (client.readyState === WebSocket.OPEN) {
-                        client.send(broadcastData);
+                        const messageWithUserFlag = {
+                            ...newMessage,
+                            isCurrentUser: newMessage.userId === clientUser.userId
+                        };
+                        client.send(JSON.stringify({
+                            type: 'NEW_MESSAGE',
+                            message: messageWithUserFlag,
+                            onlineUsers: Array.from(onlineUsers.values())
+                        }));
                     }
                 });
             }
@@ -67,14 +138,45 @@ wss.on('connection', (ws: WebSocket) => {
     });
 
     ws.on('close', () => {
-        console.log('🔌 WebSocket соединение закрыто');
-        clients.delete(ws);
-    });
+        const user = clients.get(ws);
+        if (user) {
+            onlineUsers.delete(user.userId);
+            clients.delete(ws);
+            
+            const broadcastData = JSON.stringify({
+                type: 'USER_OFFLINE',
+                username: user.username,
+                onlineUsers: Array.from(onlineUsers.values())
+            });
 
-    ws.on('error', (error) => {
-        console.error('❌ WebSocket ошибка:', error);
-        clients.delete(ws);
+            clients.forEach((_, client) => {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(broadcastData);
+                }
+            });
+        }
     });
+});
+
+app.post('/upload', upload.single('file'), (req: express.Request, res: express.Response) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'Файл не загружен' });
+        }
+
+        const fileInfo = {
+            filename: req.file.filename,
+            originalName: req.file.originalname,
+            mimetype: req.file.mimetype,
+            size: req.file.size,
+            url: `http://localhost:${PORT}/uploads/${req.file.filename}`
+        };
+
+        res.json(fileInfo);
+    } catch (error) {
+        console.error('❌ Ошибка загрузки файла:', error);
+        res.status(500).json({ error: 'Ошибка загрузки файла' });
+    }
 });
 
 app.get('/messages', (req: express.Request, res: express.Response) => {
@@ -82,51 +184,40 @@ app.get('/messages', (req: express.Request, res: express.Response) => {
 });
 
 app.post('/messages', (req: express.Request, res: express.Response) => {
-    const { user, text } = req.body;
+    const { user, text, userId, file } = req.body;
     
-    if (!user || !text) {
-        return res.status(400).json({ error: 'Имя пользователя и текст сообщения обязательны' });
+    if ((!user || !text) && !file) {
+        return res.status(400).json({ error: 'Сообщение или файл обязательны' });
     }
 
     const newMessage: Message = {
         id: nextId++,
+        userId: userId,
         user: user.toString(),
-        text: text.toString(),
-        timestamp: new Date()
+        text: text || '',
+        timestamp: new Date(),
+        file: file
     };
     
     messages.push(newMessage);
-    console.log('📨 Новое сообщение (REST):', newMessage);
 
-    const broadcastData = JSON.stringify({
-        type: 'NEW_MESSAGE',
-        message: newMessage
-    });
-
-    clients.forEach(client => {
+    clients.forEach((clientUser, client) => {
         if (client.readyState === WebSocket.OPEN) {
-            client.send(broadcastData);
+            const messageWithUserFlag = {
+                ...newMessage,
+                isCurrentUser: newMessage.userId === clientUser.userId
+            };
+            client.send(JSON.stringify({
+                type: 'NEW_MESSAGE',
+                message: messageWithUserFlag,
+                onlineUsers: Array.from(onlineUsers.values())
+            }));
         }
     });
 
     res.json(newMessage);
 });
 
-app.get('/', (req: express.Request, res: express.Response) => {
-    res.json({ 
-        message: '🚀 Сервер чата с WebSocket работает!',
-        connectedClients: clients.size,
-        endpoints: {
-            'GET /messages': 'Получить все сообщения',
-            'POST /messages': 'Отправить сообщение',
-            'WS /': 'WebSocket для реального времени'
-        }
-    });
-});
-
 server.listen(PORT, () => {
     console.log(`🚀 Сервер запущен на порту ${PORT}`);
-    console.log(`📡 HTTP: http://localhost:${PORT}`);
-    console.log(`🔗 WebSocket: ws://localhost:${PORT}`);
-    console.log(`⏰ ${new Date().toLocaleString()}`);
 });
