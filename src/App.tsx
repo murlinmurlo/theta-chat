@@ -13,7 +13,7 @@ import {
 import { Provider } from 'react-redux';
 import { store } from './store';
 import { useAppSelector, useAppDispatch } from './hooks/redux';
-import { setUsername, logout, clearError, setError } from './store/slices/chatSlice';
+import { setUsername, logout, clearError, setError, setConnection } from './store/slices/chatSlice';
 import { useWebSocket } from './hooks/useWebSocket';
 
 const ChatApp = () => {
@@ -23,7 +23,7 @@ const ChatApp = () => {
     const { messages, isConnected, username, isLoading, error } = useAppSelector(state => state.chat);
     const dispatch = useAppDispatch();
     
-    const { sendMessage } = useWebSocket('ws://localhost:5000');
+    const { sendMessage } = useWebSocket('ws://localhost:5000', !!username);
 
     const handleSendMessage = () => {
         if (inputValue.trim() && username) {
@@ -39,12 +39,14 @@ const ChatApp = () => {
     const handleLogin = () => {
         if (tempUsername.trim()) {
             dispatch(setUsername(tempUsername));
+            dispatch(clearError());
         }
     };
 
     const handleLogout = () => {
         dispatch(logout());
         setTempUsername('');
+        dispatch(setConnection(false));
     };
 
     const handleClearError = () => {
@@ -64,11 +66,16 @@ const ChatApp = () => {
             <Container maxWidth="sm" style={{ marginTop: '50px' }}>
                 <Paper elevation={3} style={{ padding: '30px', textAlign: 'center' }}>
                     <Typography variant="h4" gutterBottom color="primary">
-                        🗨️ Веб-чат
+                        🗨️ Веб-чат с Redux Toolkit
                     </Typography>
                     <Typography variant="body1" gutterBottom style={{ marginBottom: '20px' }}>
                         Введите ваше имя для начала общения
                     </Typography>
+                    {error && (
+                        <Alert severity="error" style={{ marginBottom: '20px' }} onClose={handleClearError}>
+                            {error}
+                        </Alert>
+                    )}
                     <TextField
                         fullWidth
                         value={tempUsername}
@@ -151,8 +158,8 @@ const ChatApp = () => {
                 )}
 
                 {!isConnected && !error && (
-                    <Alert severity="warning" style={{ margin: '10px' }}>
-                        Нет соединения с сервером. Сообщения могут не отправляться.
+                    <Alert severity="info" style={{ margin: '10px' }}>
+                        Установка соединения с сервером...
                     </Alert>
                 )}
 

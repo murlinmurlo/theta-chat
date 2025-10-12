@@ -2,15 +2,22 @@ import { useEffect, useRef } from 'react';
 import { useAppDispatch } from './redux';
 import { setMessages, addMessage, setConnection, setError } from '../store/slices/chatSlice';
 
-export const useWebSocket = (url: string) => {
+export const useWebSocket = (url: string, isActive: boolean = true) => {
     const dispatch = useAppDispatch();
     const ws = useRef<WebSocket | null>(null);
 
     useEffect(() => {
+        if (!isActive) {
+            if (ws.current) {
+                ws.current.close();
+                ws.current = null;
+            }
+            return;
+        }
+
         ws.current = new WebSocket(url);
 
         ws.current.onopen = () => {
-            console.log('✅ WebSocket соединение установлено');
             dispatch(setConnection(true));
             dispatch(setError(null));
         };
@@ -27,18 +34,15 @@ export const useWebSocket = (url: string) => {
                     dispatch(setError(data.message));
                 }
             } catch (error) {
-                console.error('❌ Ошибка обработки WebSocket сообщения:', error);
                 dispatch(setError('Ошибка обработки сообщения'));
             }
         };
 
         ws.current.onclose = () => {
-            console.log('🔌 WebSocket соединение закрыто');
             dispatch(setConnection(false));
         };
 
         ws.current.onerror = (error) => {
-            console.error('❌ WebSocket ошибка:', error);
             dispatch(setConnection(false));
             dispatch(setError('Ошибка соединения с сервером'));
         };
@@ -46,10 +50,10 @@ export const useWebSocket = (url: string) => {
         return () => {
             if (ws.current) {
                 ws.current.close();
+                ws.current = null;
             }
-            dispatch(setConnection(false));
         };
-    }, [url, dispatch]);
+    }, [url, dispatch, isActive]);
 
     const sendMessage = (user: string, text: string) => {
         if (ws.current && ws.current.readyState === WebSocket.OPEN) {
