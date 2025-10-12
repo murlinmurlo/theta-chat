@@ -8,6 +8,12 @@ export interface FileInfo {
     url: string;
 }
 
+export interface User {
+    userId: string;
+    username: string;
+    avatar?: string;
+}
+
 export interface Message {
     id: number;
     userId: string;
@@ -16,6 +22,7 @@ export interface Message {
     timestamp: string;
     isCurrentUser?: boolean;
     file?: FileInfo;
+    userAvatar?: string;
 }
 
 interface ChatState {
@@ -23,10 +30,12 @@ interface ChatState {
     isConnected: boolean;
     username: string;
     userId: string;
+    userAvatar: string;
     isLoading: boolean;
     error: string | null;
-    onlineUsers: string[];
+    onlineUsers: User[];
     isUploading: boolean;
+    isAvatarUploading: boolean;
 }
 
 const initialState: ChatState = {
@@ -34,10 +43,12 @@ const initialState: ChatState = {
     isConnected: false,
     username: '',
     userId: '',
+    userAvatar: '',
     isLoading: false,
     error: null,
     onlineUsers: [],
     isUploading: false,
+    isAvatarUploading: false,
 };
 
 const chatSlice = createSlice({
@@ -49,6 +60,9 @@ const chatSlice = createSlice({
         },
         setUserId: (state, action: PayloadAction<string>) => {
             state.userId = action.payload;
+        },
+        setUserAvatar: (state, action: PayloadAction<string>) => {
+            state.userAvatar = action.payload;
         },
         setConnection: (state, action: PayloadAction<boolean>) => {
             state.isConnected = action.payload;
@@ -71,27 +85,49 @@ const chatSlice = createSlice({
         logout: (state) => {
             state.username = '';
             state.userId = '';
+            state.userAvatar = '';
             state.messages = [];
             state.isConnected = false;
             state.error = null;
             state.onlineUsers = [];
             state.isUploading = false;
+            state.isAvatarUploading = false;
         },
-        setOnlineUsers: (state, action: PayloadAction<string[]>) => {
+        setOnlineUsers: (state, action: PayloadAction<User[]>) => {
             state.onlineUsers = action.payload;
         },
-        updateOnlineUsers: (state, action: PayloadAction<{username: string, type: 'online' | 'offline'}>) => {
-            const { username, type } = action.payload;
+        updateOnlineUsers: (state, action: PayloadAction<{user: User, type: 'online' | 'offline'}>) => {
+            const { user, type } = action.payload;
             if (type === 'online') {
-                if (!state.onlineUsers.includes(username)) {
-                    state.onlineUsers.push(username);
+                const existingUserIndex = state.onlineUsers.findIndex(u => u.userId === user.userId);
+                if (existingUserIndex === -1) {
+                    state.onlineUsers.push(user);
+                } else {
+                    state.onlineUsers[existingUserIndex] = user;
                 }
             } else {
-                state.onlineUsers = state.onlineUsers.filter(user => user !== username);
+                state.onlineUsers = state.onlineUsers.filter(u => u.userId !== user.userId);
             }
         },
         setUploading: (state, action: PayloadAction<boolean>) => {
             state.isUploading = action.payload;
+        },
+        setAvatarUploading: (state, action: PayloadAction<boolean>) => {
+            state.isAvatarUploading = action.payload;
+        },
+        updateUserAvatar: (state, action: PayloadAction<{userId: string, avatar: string}>) => {
+            const { userId, avatar } = action.payload;
+            if (userId === state.userId) {
+                state.userAvatar = avatar;
+            }
+            
+            state.onlineUsers = state.onlineUsers.map(user => 
+                user.userId === userId ? { ...user, avatar } : user
+            );
+            
+            state.messages = state.messages.map(message =>
+                message.userId === userId ? { ...message, userAvatar: avatar } : message
+            );
         }
     },
 });
@@ -99,6 +135,7 @@ const chatSlice = createSlice({
 export const {
     setUsername,
     setUserId,
+    setUserAvatar,
     setConnection,
     setMessages,
     addMessage,
@@ -109,6 +146,8 @@ export const {
     setOnlineUsers,
     updateOnlineUsers,
     setUploading,
+    setAvatarUploading,
+    updateUserAvatar,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;

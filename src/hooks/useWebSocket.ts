@@ -1,8 +1,17 @@
 import { useEffect, useRef } from 'react';
 import { useAppDispatch } from './redux';
-import { setMessages, addMessage, setConnection, setError, setOnlineUsers, updateOnlineUsers, setUserId } from '../store/slices/chatSlice';
+import { 
+    setMessages, 
+    addMessage, 
+    setConnection, 
+    setError, 
+    setOnlineUsers, 
+    updateOnlineUsers, 
+    setUserId,
+    updateUserAvatar 
+} from '../store/slices/chatSlice';
 
-export const useWebSocket = (url: string, username: string, userId: string) => {
+export const useWebSocket = (url: string, username: string, userId: string, userAvatar: string) => {
     const dispatch = useAppDispatch();
     const ws = useRef<WebSocket | null>(null);
 
@@ -24,7 +33,8 @@ export const useWebSocket = (url: string, username: string, userId: string) => {
             ws.current?.send(JSON.stringify({
                 type: 'LOGIN',
                 username: username,
-                userId: userId
+                userId: userId,
+                avatar: userAvatar
             }));
         };
 
@@ -42,10 +52,13 @@ export const useWebSocket = (url: string, username: string, userId: string) => {
                     dispatch(addMessage(data.message));
                     dispatch(setOnlineUsers(data.onlineUsers || []));
                 } else if (data.type === 'USER_ONLINE') {
-                    dispatch(updateOnlineUsers({username: data.username, type: 'online'}));
+                    dispatch(updateOnlineUsers({user: data.user, type: 'online'}));
                     dispatch(setOnlineUsers(data.onlineUsers || []));
                 } else if (data.type === 'USER_OFFLINE') {
-                    dispatch(updateOnlineUsers({username: data.username, type: 'offline'}));
+                    dispatch(updateOnlineUsers({user: data.user, type: 'offline'}));
+                    dispatch(setOnlineUsers(data.onlineUsers || []));
+                } else if (data.type === 'AVATAR_UPDATED') {
+                    dispatch(updateUserAvatar({userId: data.user.userId, avatar: data.user.avatar}));
                     dispatch(setOnlineUsers(data.onlineUsers || []));
                 } else if (data.type === 'ERROR') {
                     dispatch(setError(data.message));
@@ -70,7 +83,7 @@ export const useWebSocket = (url: string, username: string, userId: string) => {
                 ws.current = null;
             }
         };
-    }, [url, dispatch, username, userId]);
+    }, [url, dispatch, username, userId, userAvatar]);
 
     const sendMessage = (user: string, text: string, userId: string, file?: any) => {
         if (ws.current && ws.current.readyState === WebSocket.OPEN) {
@@ -86,5 +99,17 @@ export const useWebSocket = (url: string, username: string, userId: string) => {
         return false;
     };
 
-    return { sendMessage };
+    const updateAvatar = (userId: string, avatar: string) => {
+        if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+            ws.current.send(JSON.stringify({
+                type: 'UPDATE_AVATAR',
+                userId,
+                avatar
+            }));
+            return true;
+        }
+        return false;
+    };
+
+    return { sendMessage, updateAvatar };
 };

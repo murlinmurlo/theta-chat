@@ -27,10 +27,11 @@ import {
 import { Provider } from 'react-redux';
 import { store } from './store';
 import { useAppSelector, useAppDispatch } from './hooks/redux';
-import { setUsername, logout, clearError, setError, setConnection, setUserId, setUploading } from './store/slices/chatSlice';
+import { setUsername, logout, clearError, setError, setConnection, setUserId, setUploading, setUserAvatar, setAvatarUploading } from './store/slices/chatSlice';
 import { useWebSocket } from './hooks/useWebSocket';
 import { v4 as uuidv4 } from 'uuid';
 import FileUpload from './components/FileUpload';
+import AvatarUpload from './components/AvatarUpload';
 import { isImageFile, getFileIcon, formatFileSize } from './utils/fileUtils';
 
 const ChatApp = () => {
@@ -39,10 +40,10 @@ const ChatApp = () => {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [showFileUpload, setShowFileUpload] = useState(false);
     
-    const { messages, isConnected, username, userId, isLoading, error, onlineUsers, isUploading } = useAppSelector(state => state.chat);
+    const { messages, isConnected, username, userId, userAvatar, isLoading, error, onlineUsers, isUploading, isAvatarUploading } = useAppSelector(state => state.chat);
     const dispatch = useAppDispatch();
     
-    const { sendMessage } = useWebSocket('ws://localhost:5000', username, userId);
+    const { sendMessage, updateAvatar } = useWebSocket('ws://localhost:5000', username, userId, userAvatar);
 
     const stringToColor = (string: string) => {
         let hash = 0;
@@ -57,17 +58,45 @@ const ChatApp = () => {
         return color;
     };
 
-    const stringAvatar = (name: string) => {
+    const stringAvatar = (name: string, size: number = 32) => {
         return {
             sx: {
                 bgcolor: stringToColor(name),
-                width: 32,
-                height: 32,
-                fontSize: '0.875rem',
+                width: size,
+                height: size,
+                fontSize: size * 0.4,
                 fontWeight: 600,
             },
             children: `${name.split(' ')[0][0]}${name.split(' ')[1] ? name.split(' ')[1][0] : ''}`,
         };
+    };
+
+    const handleAvatarUpload = async (file: File) => {
+        dispatch(setAvatarUploading(true));
+        
+        try {
+            const formData = new FormData();
+            formData.append('avatar', file);
+
+            const response = await fetch('http://localhost:5000/upload-avatar', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error('Ошибка загрузки аватара');
+            }
+
+            const avatarInfo = await response.json();
+            
+            dispatch(setUserAvatar(avatarInfo.url));
+            updateAvatar(userId, avatarInfo.url);
+            
+        } catch (error) {
+            dispatch(setError('Ошибка загрузки аватара'));
+        } finally {
+            dispatch(setAvatarUploading(false));
+        }
     };
 
     const handleFileUpload = async (file: File) => {
@@ -153,7 +182,7 @@ const ChatApp = () => {
     };
 
     const isUserOnline = (messageUser: string) => {
-        return onlineUsers.includes(messageUser);
+        return onlineUsers.some(user => user.username === messageUser);
     };
 
     const renderFileMessage = (file: any) => {
@@ -283,11 +312,9 @@ const ChatApp = () => {
                             py: 1.5,
                             px: 4,
                             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                            color: 'white',
                             '&:hover': {
                                 transform: 'translateY(-1px)',
                                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                             },
                             transition: 'all 0.2s ease'
                         }}
@@ -323,7 +350,12 @@ const ChatApp = () => {
                         </Box>
                         
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Avatar {...stringAvatar(username)} />
+                            <AvatarUpload 
+                                currentAvatar={userAvatar}
+                                onAvatarUpload={handleAvatarUpload}
+                                isUploading={isAvatarUploading}
+                                username={username}
+                            />
                             <Typography variant="body2" sx={{ fontWeight: 500 }}>
                                 {username}
                             </Typography>
@@ -393,7 +425,10 @@ const ChatApp = () => {
                                         flexDirection: msg.isCurrentUser ? 'row-reverse' : 'row'
                                     }}>
                                         {!msg.isCurrentUser && (
-                                            <Avatar {...stringAvatar(msg.user)} />
+                                            <Avatar 
+                                                src={msg.userAvatar} 
+                                                {...stringAvatar(msg.user)}
+                                            />
                                         )}
                                         
                                         <Box>
@@ -473,7 +508,10 @@ const ChatApp = () => {
                                         </Box>
 
                                         {msg.isCurrentUser && (
-                                            <Avatar {...stringAvatar(msg.user)} />
+                                            <Avatar 
+                                                src={userAvatar} 
+                                                {...stringAvatar(username)}
+                                            />
                                         )}
                                     </Box>
                                 </Box>

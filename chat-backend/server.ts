@@ -15,14 +15,22 @@ const wss = new WebSocketServer({ server });
 app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
+app.use('/avatars', express.static('avatars'));
 
 if (!fs.existsSync('uploads')) {
     fs.mkdirSync('uploads');
 }
+if (!fs.existsSync('avatars')) {
+    fs.mkdirSync('avatars');
+}
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, 'uploads/');
+        if (file.fieldname === 'avatar') {
+            cb(null, 'avatars/');
+        } else {
+            cb(null, 'uploads/');
+        }
     },
     filename: (req, file, cb) => {
         const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname)}`;
@@ -33,20 +41,38 @@ const storage = multer.diskStorage({
 const upload = multer({
     storage: storage,
     limits: {
-        fileSize: 10 * 1024 * 1024
+        fileSize: 5 * 1024 * 1024 
     },
     fileFilter: (req, file, cb) => {
-        const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|txt|zip/;
-        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-        const mimetype = allowedTypes.test(file.mimetype);
+        if (file.fieldname === 'avatar') {
+            const allowedTypes = /jpeg|jpg|png|gif/;
+            const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+            const mimetype = allowedTypes.test(file.mimetype);
 
-        if (mimetype && extname) {
-            return cb(null, true);
+            if (mimetype && extname) {
+                return cb(null, true);
+            } else {
+                cb(new Error('Только изображения разрешены для аватарок'));
+            }
         } else {
-            cb(new Error('Недопустимый тип файла'));
+            const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx|txt|zip/;
+            const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+            const mimetype = allowedTypes.test(file.mimetype);
+
+            if (mimetype && extname) {
+                return cb(null, true);
+            } else {
+                cb(new Error('Недопустимый тип файла'));
+            }
         }
     }
 });
+
+interface User {
+    userId: string;
+    username: string;
+    avatar?: string;
+}
 
 interface Message {
     id: number;
@@ -65,8 +91,8 @@ interface Message {
 
 let messages: Message[] = [];
 let nextId = 1;
-const clients: Map<WebSocket, {userId: string, username: string}> = new Map();
-const onlineUsers: Map<string, string> = new Map();
+const clients: Map<WebSocket, User> = new Map();
+const onlineUsers: Map<string, User> = new Map();
 
 wss.on('connection', (ws: WebSocket) => {
     console.log('🔗 Новое WebSocket соединение');
@@ -76,17 +102,24 @@ wss.on('connection', (ws: WebSocket) => {
             const parsedData = JSON.parse(data.toString());
             
             if (parsedData.type === 'LOGIN') {
-                const { username, userId } = parsedData;
+                const { username, userId, avatar } = parsedData;
                 const userUUID = userId || uuidv4();
                 
-                clients.set(ws, {userId: userUUID, username});
-                onlineUsers.set(userUUID, username);
+                const user: User = {
+                    userId: userUUID,
+                    username: username,
+                    avatar: avatar
+                };
+                
+                clients.set(ws, user);
+                onlineUsers.set(userUUID, user);
                 
                 ws.send(JSON.stringify({
                     type: 'INIT_MESSAGES',
                     messages: messages.map(msg => ({
                         ...msg,
-                        isCurrentUser: msg.userId === userUUID
+                        isCurrentUser: msg.userId === userUUID,
+                        userAvatar: onlineUsers.get(msg.userId)?.avatar
                     })),
                     onlineUsers: Array.from(onlineUsers.values()),
                     userId: userUUID
@@ -94,11 +127,11 @@ wss.on('connection', (ws: WebSocket) => {
 
                 const broadcastData = JSON.stringify({
                     type: 'USER_ONLINE',
-                    username: username,
+                    user: user,
                     onlineUsers: Array.from(onlineUsers.values())
                 });
 
-                clients.forEach((user, client) => {
+                clients.forEach((clientUser, client) => {
                     if (client !== ws && client.readyState === WebSocket.OPEN) {
                         client.send(broadcastData);
                     }
@@ -107,6 +140,7 @@ wss.on('connection', (ws: WebSocket) => {
             
             if (parsedData.type === 'NEW_MESSAGE') {
                 const { user, text, userId, file } = parsedData;
+                const userData = onlineUsers.get(userId);
                 const newMessage: Message = {
                     id: nextId++,
                     userId: userId,
@@ -122,7 +156,8 @@ wss.on('connection', (ws: WebSocket) => {
                     if (client.readyState === WebSocket.OPEN) {
                         const messageWithUserFlag = {
                             ...newMessage,
-                            isCurrentUser: newMessage.userId === clientUser.userId
+                            isCurrentUser: newMessage.userId === clientUser.userId,
+                            userAvatar: userData?.avatar
                         };
                         client.send(JSON.stringify({
                             type: 'NEW_MESSAGE',
@@ -131,6 +166,27 @@ wss.on('connection', (ws: WebSocket) => {
                         }));
                     }
                 });
+            }
+
+            if (parsedData.type === 'UPDATE_AVATAR') {
+                const { userId, avatar } = parsedData;
+                const user = onlineUsers.get(userId);
+                if (user) {
+                    user.avatar = avatar;
+                    onlineUsers.set(userId, user);
+                    
+                    const broadcastData = JSON.stringify({
+                        type: 'AVATAR_UPDATED',
+                        user: user,
+                        onlineUsers: Array.from(onlineUsers.values())
+                    });
+
+                    clients.forEach((clientUser, client) => {
+                        if (client.readyState === WebSocket.OPEN) {
+                            client.send(broadcastData);
+                        }
+                    });
+                }
             }
         } catch (error) {
             console.error('❌ Ошибка обработки сообщения:', error);
@@ -145,7 +201,7 @@ wss.on('connection', (ws: WebSocket) => {
             
             const broadcastData = JSON.stringify({
                 type: 'USER_OFFLINE',
-                username: user.username,
+                user: user,
                 onlineUsers: Array.from(onlineUsers.values())
             });
 
@@ -179,8 +235,30 @@ app.post('/upload', upload.single('file'), (req: express.Request, res: express.R
     }
 });
 
+app.post('/upload-avatar', upload.single('avatar'), (req: express.Request, res: express.Response) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'Аватар не загружен' });
+        }
+
+        const avatarInfo = {
+            filename: req.file.filename,
+            url: `http://localhost:${PORT}/avatars/${req.file.filename}`
+        };
+
+        res.json(avatarInfo);
+    } catch (error) {
+        console.error('❌ Ошибка загрузки аватара:', error);
+        res.status(500).json({ error: 'Ошибка загрузки аватара' });
+    }
+});
+
 app.get('/messages', (req: express.Request, res: express.Response) => {
-    res.json(messages);
+    const messagesWithAvatars = messages.map(msg => ({
+        ...msg,
+        userAvatar: onlineUsers.get(msg.userId)?.avatar
+    }));
+    res.json(messagesWithAvatars);
 });
 
 app.post('/messages', (req: express.Request, res: express.Response) => {
@@ -190,6 +268,7 @@ app.post('/messages', (req: express.Request, res: express.Response) => {
         return res.status(400).json({ error: 'Сообщение или файл обязательны' });
     }
 
+    const userData = onlineUsers.get(userId);
     const newMessage: Message = {
         id: nextId++,
         userId: userId,
@@ -205,7 +284,8 @@ app.post('/messages', (req: express.Request, res: express.Response) => {
         if (client.readyState === WebSocket.OPEN) {
             const messageWithUserFlag = {
                 ...newMessage,
-                isCurrentUser: newMessage.userId === clientUser.userId
+                isCurrentUser: newMessage.userId === clientUser.userId,
+                userAvatar: userData?.avatar
             };
             client.send(JSON.stringify({
                 type: 'NEW_MESSAGE',
