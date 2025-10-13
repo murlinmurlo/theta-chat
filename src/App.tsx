@@ -1,50 +1,37 @@
 import React, { useState } from 'react';
 import { 
-    TextField, 
-    Button, 
-    Container, 
-    Paper, 
-    Typography, 
-    Box,
-    Chip,
-    Alert,
-    CircularProgress,
-    IconButton,
-    Avatar,
-    AppBar,
-    Toolbar,
-    Badge
+    TextField, Button, Container, Paper, Typography, Box,
+    Alert, CircularProgress, IconButton, Avatar, AppBar, Toolbar
 } from '@mui/material';
-import { 
-    AttachFile, 
-    Close, 
-    Send, 
-    Logout, 
-    Image as ImageIcon,
-    InsertDriveFile,
-    People 
-} from '@mui/icons-material';
+import { AttachFile, Send, Logout, People } from '@mui/icons-material';
 import { Provider } from 'react-redux';
 import { store } from './store';
 import { useAppSelector, useAppDispatch } from './hooks/redux';
-import { setUsername, logout, clearError, setError, setConnection, setUserId, setUploading, setUserAvatar, setAvatarUploading } from './store/slices/chatSlice';
+import { setUsername, logout, clearError, setError, setUserId, setUploading, setUserAvatar, setAvatarUploading } from './store/slices/chatSlice';
 import { useWebSocket } from './hooks/useWebSocket';
 import { v4 as uuidv4 } from 'uuid';
 import FileUpload from './components/FileUpload';
 import AvatarUpload from './components/AvatarUpload';
 import { isImageFile, getFileIcon, formatFileSize } from './utils/fileUtils';
 
+/**
+ * Основной компонент чат-приложения
+ * Управляет аутентификацией, сообщениями, файлами и WebSocket соединением
+ */
 const ChatApp = () => {
     const [inputValue, setInputValue] = useState('');
     const [tempUsername, setTempUsername] = useState('');
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [showFileUpload, setShowFileUpload] = useState(false);
     
-    const { messages, isConnected, username, userId, userAvatar, isLoading, error, onlineUsers, isUploading, isAvatarUploading } = useAppSelector(state => state.chat);
+    const { messages, isConnected, username, userId, userAvatar, error, onlineUsers, isUploading, isAvatarUploading } = useAppSelector(state => state.chat);
     const dispatch = useAppDispatch();
     
     const { sendMessage, updateAvatar } = useWebSocket('ws://localhost:5000', username, userId, userAvatar);
 
+    /**
+     * Генерирует цвет для аватара
+     */
     const stringToColor = (string: string) => {
         let hash = 0;
         for (let i = 0; i < string.length; i++) {
@@ -58,6 +45,9 @@ const ChatApp = () => {
         return color;
     };
 
+    /**
+     * Создает конфигурацию для аватара
+     */
     const stringAvatar = (name: string, size: number = 32) => {
         return {
             sx: {
@@ -71,6 +61,9 @@ const ChatApp = () => {
         };
     };
 
+    /**
+     * Загружает аватар пользователя
+     */
     const handleAvatarUpload = async (file: File) => {
         dispatch(setAvatarUploading(true));
         
@@ -83,12 +76,9 @@ const ChatApp = () => {
                 body: formData
             });
 
-            if (!response.ok) {
-                throw new Error('Ошибка загрузки аватара');
-            }
+            if (!response.ok) throw new Error('Ошибка загрузки аватара');
 
             const avatarInfo = await response.json();
-            
             dispatch(setUserAvatar(avatarInfo.url));
             updateAvatar(userId, avatarInfo.url);
             
@@ -99,6 +89,9 @@ const ChatApp = () => {
         }
     };
 
+    /**
+     * Отправляет сообщение с файлом
+     */
     const handleFileUpload = async (file: File) => {
         setSelectedFile(file);
         dispatch(setUploading(true));
@@ -112,13 +105,11 @@ const ChatApp = () => {
                 body: formData
             });
 
-            if (!response.ok) {
-                throw new Error('Ошибка загрузки файла');
-            }
+            if (!response.ok) throw new Error('Ошибка загрузки файла');
 
             const fileInfo = await response.json();
-            
             const success = sendMessage(username, '', userId, fileInfo);
+            
             if (success) {
                 setSelectedFile(null);
                 setShowFileUpload(false);
@@ -137,21 +128,27 @@ const ChatApp = () => {
         dispatch(setUploading(false));
     };
 
+    /**
+     * Отправляет сообщение
+     */
     const handleSendMessage = () => {
         if ((inputValue.trim() || selectedFile) && username && userId) {
             if (selectedFile && !isUploading) {
                 handleFileUpload(selectedFile);
             } else if (inputValue.trim()) {
                 const success = sendMessage(username, inputValue, userId);
-                if (success) {
-                    setInputValue('');
-                } else {
+                if (!success) {
                     dispatch(setError('Ошибка отправки сообщения. Проверьте соединение.'));
+                } else {
+                    setInputValue('');
                 }
             }
         }
     };
 
+    /**
+     * Аутентификация пользователя
+     */
     const handleLogin = () => {
         if (tempUsername.trim()) {
             const newUserId = uuidv4();
@@ -164,7 +161,6 @@ const ChatApp = () => {
     const handleLogout = () => {
         dispatch(logout());
         setTempUsername('');
-        dispatch(setConnection(false));
         setSelectedFile(null);
         setShowFileUpload(false);
     };
@@ -173,6 +169,9 @@ const ChatApp = () => {
         dispatch(clearError());
     };
 
+    /**
+     * Форматирует время для отображения
+     */
     const formatTime = (timestamp: string) => {
         const date = new Date(timestamp);
         return date.toLocaleTimeString('ru-RU', { 
@@ -181,10 +180,16 @@ const ChatApp = () => {
         });
     };
 
+    /**
+     * Проверяет онлайн-статус пользователя
+     */
     const isUserOnline = (messageUser: string) => {
         return onlineUsers.some(user => user.username === messageUser);
     };
 
+    /**
+     * Рендерит сообщение с файлом
+     */
     const renderFileMessage = (file: any) => {
         if (isImageFile(file.mimetype)) {
             return (
@@ -220,9 +225,7 @@ const ChatApp = () => {
                     mt: 1,
                     backgroundColor: 'background.default',
                     cursor: 'pointer',
-                    '&:hover': {
-                        backgroundColor: 'action.hover',
-                    }
+                    '&:hover': { backgroundColor: 'action.hover' }
                 }}
                 onClick={() => window.open(file.url, '_blank')}
             >
@@ -250,18 +253,17 @@ const ChatApp = () => {
         );
     };
 
+    // Окно аутентификации
     if (!username) {
         return (
-            <Box
-                sx={{
-                    minHeight: '100vh',
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    p: 2
-                }}
-            >
+            <Box sx={{
+                minHeight: '100vh',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                p: 2
+            }}>
                 <Paper 
                     elevation={8} 
                     sx={{ 
@@ -326,6 +328,7 @@ const ChatApp = () => {
         );
     }
 
+    // Интерфейс чата
     return (
         <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#f8fafc' }}>
             <AppBar 
@@ -364,11 +367,7 @@ const ChatApp = () => {
                         <IconButton 
                             color="inherit" 
                             onClick={handleLogout}
-                            sx={{ 
-                                '&:hover': {
-                                    backgroundColor: 'rgba(255,255,255,0.1)'
-                                }
-                            }}
+                            sx={{ '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)' } }}
                         >
                             <Logout />
                         </IconButton>
@@ -387,6 +386,7 @@ const ChatApp = () => {
                         overflow: 'hidden'
                     }}
                 >
+                    {/* Область сообщений */}
                     <Box sx={{ 
                         flex: 1, 
                         p: 2, 
@@ -394,11 +394,7 @@ const ChatApp = () => {
                         background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
                     }}>
                         {messages.length === 0 ? (
-                            <Box sx={{ 
-                                textAlign: 'center', 
-                                mt: 8,
-                                color: 'text.secondary'
-                            }}>
+                            <Box sx={{ textAlign: 'center', mt: 8, color: 'text.secondary' }}>
                                 <Typography variant="h6" sx={{ mb: 1, opacity: 0.7 }}>
                                     {isConnected ? "Начните общение!" : "Подключение..."}
                                 </Typography>
@@ -408,110 +404,56 @@ const ChatApp = () => {
                             </Box>
                         ) : (
                             messages.map((msg) => (
-                                <Box 
-                                    key={msg.id}
-                                    sx={{ 
-                                        display: 'flex',
-                                        justifyContent: msg.isCurrentUser ? 'flex-end' : 'flex-start',
-                                        mb: 2,
-                                        animation: 'fadeIn 0.3s ease'
-                                    }}
-                                >
-                                    <Box sx={{ 
-                                        display: 'flex',
-                                        alignItems: 'flex-start',
-                                        gap: 1,
-                                        maxWidth: '70%',
-                                        flexDirection: msg.isCurrentUser ? 'row-reverse' : 'row'
-                                    }}>
+                                <Box key={msg.id} sx={{ display: 'flex', justifyContent: msg.isCurrentUser ? 'flex-end' : 'flex-start', mb: 2 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, maxWidth: '70%', flexDirection: msg.isCurrentUser ? 'row-reverse' : 'row' }}>
+                                        {/* Аватар отправителя */}
                                         {!msg.isCurrentUser && (
-                                            <Avatar 
-                                                src={msg.userAvatar} 
-                                                {...stringAvatar(msg.user)}
-                                            />
+                                            <Avatar src={msg.userAvatar} {...stringAvatar(msg.user)} />
                                         )}
                                         
                                         <Box>
+                                            {/* Имя отправителя для чужих сообщений */}
                                             {!msg.isCurrentUser && (
                                                 <Typography variant="caption" color="text.secondary" sx={{ ml: 1, mb: 0.5, display: 'block' }}>
                                                     {msg.user}
                                                     {isUserOnline(msg.user) && (
-                                                        <Box 
-                                                            component="span"
-                                                            sx={{
-                                                                width: 6,
-                                                                height: 6,
-                                                                borderRadius: '50%',
-                                                                backgroundColor: 'success.main',
-                                                                ml: 0.5,
-                                                                display: 'inline-block'
-                                                            }}
-                                                        />
+                                                        <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: 'success.main', ml: 0.5, display: 'inline-block' }} />
                                                     )}
                                                 </Typography>
                                             )}
                                             
-                                            <Paper
-                                                elevation={1}
-                                                sx={{
-                                                    p: 2,
-                                                    background: msg.isCurrentUser 
-                                                        ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                                                        : 'white',
-                                                    color: msg.isCurrentUser ? 'white' : 'text.primary',
-                                                    borderRadius: 2,
-                                                    borderTopRightRadius: msg.isCurrentUser ? 4 : 12,
-                                                    borderTopLeftRadius: msg.isCurrentUser ? 12 : 4,
-                                                    position: 'relative',
-                                                    '&::before': msg.isCurrentUser ? {
-                                                        content: '""',
-                                                        position: 'absolute',
-                                                        right: -8,
-                                                        top: 0,
-                                                        width: 0,
-                                                        height: 0,
-                                                        borderLeft: '8px solid #764ba2',
-                                                        borderTop: '8px solid transparent',
-                                                        borderBottom: '8px solid transparent'
-                                                    } : {
-                                                        content: '""',
-                                                        position: 'absolute',
-                                                        left: -8,
-                                                        top: 0,
-                                                        width: 0,
-                                                        height: 0,
-                                                        borderRight: '8px solid white',
-                                                        borderTop: '8px solid transparent',
-                                                        borderBottom: '8px solid transparent'
-                                                    }
-                                                }}
-                                            >
+                                            {/* Блок сообщения */}
+                                            <Paper sx={{
+                                                p: 2,
+                                                background: msg.isCurrentUser 
+                                                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                                                    : 'white',
+                                                color: msg.isCurrentUser ? 'white' : 'text.primary',
+                                                borderRadius: 2,
+                                                borderTopRightRadius: msg.isCurrentUser ? 4 : 12,
+                                                borderTopLeftRadius: msg.isCurrentUser ? 12 : 4,
+                                                position: 'relative'
+                                            }}>
+                                                {/* Текст сообщения */}
                                                 {msg.text && (
                                                     <Typography variant="body1" sx={{ lineHeight: 1.5 }}>
                                                         {msg.text}
                                                     </Typography>
                                                 )}
                                                 
+                                                {/* Файл сообщения */}
                                                 {msg.file && renderFileMessage(msg.file)}
                                                 
-                                                <Typography 
-                                                    variant="caption" 
-                                                    sx={{ 
-                                                        display: 'block', 
-                                                        mt: 1,
-                                                        opacity: 0.7
-                                                    }}
-                                                >
+                                                {/* Время сообщения */}
+                                                <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.7 }}>
                                                     {formatTime(msg.timestamp)}
                                                 </Typography>
                                             </Paper>
                                         </Box>
 
+                                        {/* Аватар текущего пользователя */}
                                         {msg.isCurrentUser && (
-                                            <Avatar 
-                                                src={userAvatar} 
-                                                {...stringAvatar(username)}
-                                            />
+                                            <Avatar src={userAvatar} {...stringAvatar(username)} />
                                         )}
                                     </Box>
                                 </Box>
@@ -519,6 +461,7 @@ const ChatApp = () => {
                         )}
                     </Box>
 
+                    {/* Панель ввода сообщения */}
                     <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider', background: 'white' }}>
                         {showFileUpload && (
                             <FileUpload 
@@ -532,13 +475,6 @@ const ChatApp = () => {
                             <IconButton 
                                 onClick={() => setShowFileUpload(!showFileUpload)}
                                 color={showFileUpload ? "primary" : "default"}
-                                sx={{
-                                    '&:hover': {
-                                        backgroundColor: 'action.hover',
-                                        transform: 'scale(1.1)'
-                                    },
-                                    transition: 'all 0.2s ease'
-                                }}
                             >
                                 <AttachFile />
                             </IconButton>
@@ -569,12 +505,7 @@ const ChatApp = () => {
                                     width: 48,
                                     height: 48,
                                     borderRadius: '50%',
-                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                                    '&:hover': {
-                                        transform: 'scale(1.05)',
-                                    },
-                                    transition: 'all 0.2s ease',
-                                    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+                                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
                                 }}
                             >
                                 {isUploading ? <CircularProgress size={20} sx={{ color: 'white' }} /> : <Send />}
@@ -584,29 +515,15 @@ const ChatApp = () => {
                 </Paper>
             </Container>
 
+            {/* Уведомления об ошибках и статусе соединения */}
             {error && (
-                <Alert 
-                    severity="error" 
-                    sx={{ 
-                        m: 2,
-                        borderRadius: 2,
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                    }}
-                    onClose={handleClearError}
-                >
+                <Alert severity="error" sx={{ m: 2, borderRadius: 2 }} onClose={handleClearError}>
                     {error}
                 </Alert>
             )}
 
             {!isConnected && !error && (
-                <Alert 
-                    severity="info" 
-                    sx={{ 
-                        m: 2,
-                        borderRadius: 2,
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                    }}
-                >
+                <Alert severity="info" sx={{ m: 2, borderRadius: 2 }}>
                     Устанавливаем соединение с сервером...
                 </Alert>
             )}

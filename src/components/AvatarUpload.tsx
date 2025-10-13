@@ -10,6 +10,9 @@ interface AvatarUploadProps {
     username: string;
 }
 
+/**
+ * Компонент для загрузки и отображения аватара пользователя
+ */
 const AvatarUpload: React.FC<AvatarUploadProps> = ({ 
     currentAvatar, 
     onAvatarUpload, 
@@ -18,6 +21,7 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
 }) => {
     const [isHovered, setIsHovered] = useState(false);
 
+    // Загрузка файла аватара
     const onDrop = useCallback((acceptedFiles: File[]) => {
         if (acceptedFiles && acceptedFiles.length > 0) {
             const file = acceptedFiles[0];
@@ -28,12 +32,15 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
     const { getRootProps, getInputProps } = useDropzone({
         onDrop,
         maxFiles: 1,
-        maxSize: 5 * 1024 * 1024,
+        maxSize: 5 * 1024 * 1024, // 5MB лимит для аватара
         accept: {
             'image/*': ['.jpeg', '.jpg', '.png', '.gif']
         }
     });
 
+    /**
+     * Генерирует цвет для аватара
+     */
     const stringToColor = (string: string) => {
         let hash = 0;
         for (let i = 0; i < string.length; i++) {
@@ -47,6 +54,9 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
         return color;
     };
 
+    /**
+     * Компонент с инициалами
+     */
     const stringAvatar = (name: string, size: number = 64) => {
         return {
             sx: {
@@ -82,6 +92,7 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
         >
             <input {...getInputProps()} />
             
+            {/* Отображение текущего аватара или инициалов */}
             {currentAvatar ? (
                 <Avatar
                     src={currentAvatar}
@@ -100,6 +111,7 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
                 <Avatar {...stringAvatar(username, 64)} />
             )}
             
+            {/* Наложение при наведении с иконкой камеры*/}
             <Box
                 className="avatar-overlay"
                 sx={{

@@ -41,7 +41,7 @@ const storage = multer.diskStorage({
 const upload = multer({
     storage: storage,
     limits: {
-        fileSize: 5 * 1024 * 1024 
+        fileSize: 5 * 1024 * 1024 // 5MB лимит
     },
     fileFilter: (req, file, cb) => {
         if (file.fieldname === 'avatar') {
@@ -94,6 +94,10 @@ let nextId = 1;
 const clients: Map<WebSocket, User> = new Map();
 const onlineUsers: Map<string, User> = new Map();
 
+/**
+ * Обработчик WebSocket соединений
+ * Управляет подключением пользователей, сообщениями и онлайн-статусами
+ */
 wss.on('connection', (ws: WebSocket) => {
     console.log('🔗 Новое WebSocket соединение');
 
@@ -101,6 +105,7 @@ wss.on('connection', (ws: WebSocket) => {
         try {
             const parsedData = JSON.parse(data.toString());
             
+            // Обработка входа пользователя
             if (parsedData.type === 'LOGIN') {
                 const { username, userId, avatar } = parsedData;
                 const userUUID = userId || uuidv4();
@@ -138,6 +143,7 @@ wss.on('connection', (ws: WebSocket) => {
                 });
             }
             
+            // Обработка нового сообщения
             if (parsedData.type === 'NEW_MESSAGE') {
                 const { user, text, userId, file } = parsedData;
                 const userData = onlineUsers.get(userId);
@@ -152,6 +158,7 @@ wss.on('connection', (ws: WebSocket) => {
                 
                 messages.push(newMessage);
 
+                // Рассылка сообщения всем подключенным клиентам
                 clients.forEach((clientUser, client) => {
                     if (client.readyState === WebSocket.OPEN) {
                         const messageWithUserFlag = {
@@ -168,6 +175,7 @@ wss.on('connection', (ws: WebSocket) => {
                 });
             }
 
+            // Обработка обновления аватара
             if (parsedData.type === 'UPDATE_AVATAR') {
                 const { userId, avatar } = parsedData;
                 const user = onlineUsers.get(userId);
@@ -193,6 +201,7 @@ wss.on('connection', (ws: WebSocket) => {
         }
     });
 
+    // Обработчик отключения пользователя
     ws.on('close', () => {
         const user = clients.get(ws);
         if (user) {
@@ -214,6 +223,9 @@ wss.on('connection', (ws: WebSocket) => {
     });
 });
 
+/**
+ * REST API endpoint для загрузки файлов
+ */
 app.post('/upload', upload.single('file'), (req: express.Request, res: express.Response) => {
     try {
         if (!req.file) {
@@ -235,6 +247,9 @@ app.post('/upload', upload.single('file'), (req: express.Request, res: express.R
     }
 });
 
+/**
+ * REST API endpoint для загрузки аватаров
+ */
 app.post('/upload-avatar', upload.single('avatar'), (req: express.Request, res: express.Response) => {
     try {
         if (!req.file) {
@@ -253,6 +268,9 @@ app.post('/upload-avatar', upload.single('avatar'), (req: express.Request, res: 
     }
 });
 
+/**
+ * REST API endpoint для получения истории сообщений
+ */
 app.get('/messages', (req: express.Request, res: express.Response) => {
     const messagesWithAvatars = messages.map(msg => ({
         ...msg,
@@ -261,6 +279,9 @@ app.get('/messages', (req: express.Request, res: express.Response) => {
     res.json(messagesWithAvatars);
 });
 
+/**
+ * REST API endpoint для отправки сообщений через HTTP
+ */
 app.post('/messages', (req: express.Request, res: express.Response) => {
     const { user, text, userId, file } = req.body;
     
@@ -280,6 +301,7 @@ app.post('/messages', (req: express.Request, res: express.Response) => {
     
     messages.push(newMessage);
 
+    // Рассылка сообщения
     clients.forEach((clientUser, client) => {
         if (client.readyState === WebSocket.OPEN) {
             const messageWithUserFlag = {

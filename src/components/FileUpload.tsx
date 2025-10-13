@@ -10,6 +10,10 @@ interface FileUploadProps {
     isUploading: boolean;
 }
 
+/**
+ * Компонент для загрузки файлов с drag-and-drop функциональностью
+ * Поддерживает предпросмотр изображений и отображение статуса загрузки
+ */
 const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, onRemoveFile, isUploading }) => {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
@@ -24,7 +28,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, onRemoveFile, isU
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
         maxFiles: 1,
-        maxSize: 10 * 1024 * 1024,
+        maxSize: 10 * 1024 * 1024, // 10MB лимит
         accept: {
             'image/*': ['.jpeg', '.jpg', '.png', '.gif'],
             'application/pdf': ['.pdf'],
@@ -40,6 +44,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, onRemoveFile, isU
         onRemoveFile();
     };
 
+    // Предпросмотр
     if (selectedFile) {
         return (
             <Paper 
@@ -53,6 +58,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, onRemoveFile, isU
             >
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        {/* Предпросмотр для изображений */}
                         {isImageFile(selectedFile.type) ? (
                             <Box sx={{ 
                                 width: 60, 
@@ -75,6 +81,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, onRemoveFile, isU
                                 />
                             </Box>
                         ) : (
+                            // Иконка
                             <Box sx={{ 
                                 width: 60, 
                                 height: 60, 
@@ -101,15 +108,11 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, onRemoveFile, isU
                         size="small" 
                         onClick={handleRemoveFile}
                         disabled={isUploading}
-                        sx={{
-                            '&:hover': {
-                                backgroundColor: 'action.hover'
-                            }
-                        }}
                     >
                         <Close />
                     </IconButton>
                 </Box>
+                {/* Индикатор загрузки */}
                 {isUploading && (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
                         <CircularProgress size={16} />
@@ -133,7 +136,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, onRemoveFile, isU
                 p: 3,
                 textAlign: 'center',
                 cursor: 'pointer',
-                backgroundColor: isDragActive ? 'primary.light' : 'background.default',
+                backgroundColor: isDragActive ? 'action.hover' : 'background.default',
                 mb: 2,
                 transition: 'all 0.2s ease',
                 '&:hover': {
@@ -146,7 +149,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload, onRemoveFile, isU
             <CloudUpload 
                 sx={{ 
                     fontSize: 48, 
-                    color: isDragActive ? 'white' : 'text.secondary',
+                    color: isDragActive ? 'primary.main' : 'text.secondary',
                     mb: 2
                 }} 
             />
