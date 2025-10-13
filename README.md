@@ -100,17 +100,20 @@
   
 
 #### 1. Клонирование репозитория
-
-Backend:
 ```bash
 
 git  clone  https://github.com/murlinmurlo/nexus-chat.git
+```
+
+#### 2. Backend:
+```bash
+
 cd  nexus-chat/chat-backend
 npm install uuid
 npm  run  dev 
 ```
 
-Frontend:
+#### 2.Frontend:
 ```bash
 
 cd ..
